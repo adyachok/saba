@@ -118,9 +118,44 @@ func SortVMsOnEvacuationRange(serversSlice []servers.Server) {
 	sort.Sort(ByRange(serversSlice))
 }
 
+
+type ServerEvacuation struct {
+	ServerBefore servers.Server
+	ServerCurrent servers.Server
+	isMigratedSuccessfully bool
+}
+
+func NewServerEvacuation (server servers.Server) *ServerEvacuation {
+	return &ServerEvacuation{
+		ServerBefore: server,
+		isMigratedSuccessfully: false,
+	}
+}
+
 // Run command "nova evacuate .." for a selected VM
 // Nova runs command synchronously,so have to wait for
 // result.
-func Evacuate() error {
+func (se *ServerEvacuation) Evacuate() error {
+	// TODO: 1. create a pool of workers (max size = hypervisors count)
+	// TODO: 2. each worker sends Nova command  to evacuate selected VM
+	// TODO: 3. worker waits for the result.
+	// TODO: 4. worker gets hostname of VM evacuated on (or get it with state?)
+	// TODO: 5. worker gets a hypervisor detail for this host and updates Cluster Resourses
+	// TODO: STEPS:
+	// TODO: 3. create pool of workers
+
+	return nil
+}
+
+func (se *ServerEvacuation) CheckServerEvacuation(client *gophercloud.ServiceClient) error{
+	serverNewObj, err := servers.Get(client, se.ServerBefore.ID).Extract()
+	if err != nil {
+		return err
+	}
+	if serverNewObj.Status == "ACTIVE" && se.ServerBefore.HostID != serverNewObj.HostID {
+		se.isMigratedSuccessfully = true
+
+	}
+	se.ServerCurrent = *serverNewObj
 	return nil
 }

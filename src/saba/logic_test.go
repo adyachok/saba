@@ -74,3 +74,46 @@ func TestGetVMsToEvacuate(t *testing.T) {
 	th.AssertNoErr(t, err)
 	th.AssertDeepEquals(t, ServersListFilteredByEvacuationPolicyExpected, serversSlice)
 }
+
+func TestCheckServerEvacuationSuccess(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	th.Mux.HandleFunc("/servers/9e5476bd-a4ec-4653-93d6-72c93aa682ba", func(w http.ResponseWriter, r *http.Request) {
+		th.TestMethod(t, r, "GET")
+		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
+
+		w.Header().Add("Content-Type", "application/json")
+		fmt.Fprintf(w, ServerDerpSuccessfulEvacuationRespBody)
+	})
+	se := NewServerEvacuation(ServerDerp)
+	err := se.CheckServerEvacuation(client.ServiceClient())
+
+	if !se.isMigratedSuccessfully {
+		t.Errorf("Expected server Derp to be evacuated")
+	}
+
+	th.AssertNoErr(t, err)
+}
+
+func TestCheckServerEvacuationFail(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	th.Mux.HandleFunc("/servers/9e5476bd-a4ec-4653-93d6-72c93aa682ba", func(w http.ResponseWriter, r *http.Request) {
+		th.TestMethod(t, r, "GET")
+		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
+
+		w.Header().Add("Content-Type", "application/json")
+		fmt.Fprintf(w, ServerDerpFailedEvacuationRespBody)
+	})
+	se := NewServerEvacuation(ServerDerp)
+
+	err := se.CheckServerEvacuation(client.ServiceClient())
+
+	if se.isMigratedSuccessfully {
+		t.Errorf("Expected server Derp not to be evacuated")
+	}
+
+	th.AssertNoErr(t, err)
+}

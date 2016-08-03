@@ -454,3 +454,124 @@ var (
 	ServersListFilteredByEvacuationPolicyExpected = []servers.Server{ServerDerp, ServerHerp}
 )
 
+const ServerDerpSuccessfulEvacuationRespBody = `
+{
+	"server": {
+			"OS-DCF:diskConfig": "MANUAL",
+			"OS-EXT-STS:power_state": 1,
+			"OS-EXT-STS:task_state": null,
+			"OS-EXT-STS:vm_state": "active",
+			"accessIPv4": "",
+			"accessIPv6": "",
+			"addresses": {},
+			"created": "2014-09-25T13:04:41Z",
+			"flavor": {
+				"id": "performance1-8",
+				"links": [
+					{
+						"href": "https://dfw.servers.api.rackspacecloud.com/111111/flavors/performance1-8",
+						"rel": "bookmark"
+					}
+				]
+			},
+			"hostId": "92147c74df3beb53644ef5e569f6d0e5ab8d6f4a364486fc97ffe738",
+			"id": "9e5476bd-a4ec-4653-93d6-72c93aa682ba",
+			"security_groups": [
+				{
+					"name": "default"
+				}
+			],
+			"image": {
+				"id": "255df5fb-e3d4-45a3-9a07-c976debf7c14",
+				"links": [
+					{
+						"href": "https://dfw.servers.api.rackspacecloud.com/111111/images/255df5fb-e3d4-45a3-9a07-c976debf7c14",
+						"rel": "bookmark"
+					}
+				]
+			},
+			"key_name": "",
+			"links": [
+				{
+					"href": "https://dfw.servers.api.rackspacecloud.com/v2/111111/servers/59818cee-bc8c-44eb-8073-673ee65105f7",
+					"rel": "self"
+				},
+				{
+					"href": "https://dfw.servers.api.rackspacecloud.com/111111/servers/59818cee-bc8c-44eb-8073-673ee65105f7",
+					"rel": "bookmark"
+				}
+			],
+			"metadata": {
+			"evacuation_policy": "Evacuation",
+				"evacuation_range": 100
+			},
+			"name": "derp",
+			"progress": 0,
+			"status": "ACTIVE",
+			"tenant_id": "fcad67a6189847c4aecfa3c81a05783b",
+			"updated": "2014-09-25T13:04:49Z",
+			"user_id": "9349aff8be7545ac9d2f1d00999a23cd"
+		}
+	}
+`
+
+const ServerDerpFailedEvacuationRespBody = `
+{
+	"server": {
+			"OS-DCF:diskConfig": "MANUAL",
+			"OS-EXT-STS:power_state": 1,
+			"OS-EXT-STS:task_state": null,
+			"OS-EXT-STS:vm_state": "active",
+			"accessIPv4": "",
+			"accessIPv6": "",
+			"addresses": {},
+			"created": "2014-09-25T13:04:41Z",
+			"flavor": {
+				"id": "performance1-8",
+				"links": [
+					{
+						"href": "https://dfw.servers.api.rackspacecloud.com/111111/flavors/performance1-8",
+						"rel": "bookmark"
+					}
+				]
+			},
+			"hostId": "92147c74df3beb53644ef5e569f6d0e5ab8d6f4a364486fc97ffe738",
+			"id": "9e5476bd-a4ec-4653-93d6-72c93aa682ba",
+			"security_groups": [
+				{
+					"name": "default"
+				}
+			],
+			"image": {
+				"id": "255df5fb-e3d4-45a3-9a07-c976debf7c14",
+				"links": [
+					{
+						"href": "https://dfw.servers.api.rackspacecloud.com/111111/images/255df5fb-e3d4-45a3-9a07-c976debf7c14",
+						"rel": "bookmark"
+					}
+				]
+			},
+			"key_name": "",
+			"links": [
+				{
+					"href": "https://dfw.servers.api.rackspacecloud.com/v2/111111/servers/59818cee-bc8c-44eb-8073-673ee65105f7",
+					"rel": "self"
+				},
+				{
+					"href": "https://dfw.servers.api.rackspacecloud.com/111111/servers/59818cee-bc8c-44eb-8073-673ee65105f7",
+					"rel": "bookmark"
+				}
+			],
+			"metadata": {
+			"evacuation_policy": "Evacuation",
+				"evacuation_range": 100
+			},
+			"name": "derp",
+			"progress": 0,
+			"status": "ERROR",
+			"tenant_id": "fcad67a6189847c4aecfa3c81a05783b",
+			"updated": "2014-09-25T13:04:49Z",
+			"user_id": "9349aff8be7545ac9d2f1d00999a23cd"
+		}
+	}
+`
