@@ -26,21 +26,28 @@ func TestGetAvailableClusterResources(t *testing.T) {
 	}
 
 	cluster := Cluster{}
-	err := GetAvailableClusterResources(client.ServiceClient(), &cluster)
+	err := cluster.UpdateAvailableClusterResources(client.ServiceClient())
 
 	th.AssertNoErr(t, err)
 	th.AssertDeepEquals(t, clusterExpected, cluster)
 }
 
 func TestSortVMsOnEvacuationRange(t *testing.T) {
-	testServersList := make([]servers.Server, len(ServersList))
-	copy(testServersList, ServersList)
+	var testServersList []*ServerEvacuation
+	for _, serv := range ServersList {
+		testServersList = append(testServersList, NewServerEvacuation(serv))
+	}
+
 	SortVMsOnEvacuationRange(testServersList)
 
-	if len(ServersList) != 3 {
-		t.Errorf("Expected 3 servers, saw %d", len(testServersList))
+	if len(testServersList) != 3 {
+		t.Errorf("Expected 3 servers to Evacuate, saw %d", len(testServersList))
 	}
+
 	th.AssertDeepEquals(t, ServersListSortedByRangeExpected, testServersList)
+	th.AssertEquals(t, 0, ServersListSortedByRangeExpected[2].ServerBefore.Metadata["evacuation_range"])
+	th.AssertEquals(t, 100, ServersListSortedByRangeExpected[1].ServerBefore.Metadata["evacuation_range"])
+	th.AssertEquals(t, nil, ServersListSortedByRangeExpected[0].ServerBefore.Metadata["evacuation_range"])
 }
 
 func TestFilterVMsOnEvacuationPolicy(t *testing.T) {

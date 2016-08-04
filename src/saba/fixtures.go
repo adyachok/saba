@@ -450,7 +450,8 @@ var (
 	}
 
 	ServersList = []servers.Server{ServerErp, ServerHerp, ServerDerp}
-	ServersListSortedByRangeExpected = []servers.Server{ServerDerp, ServerHerp, ServerErp}
+	ServersListSortedByRangeExpected = []*ServerEvacuation{NewServerEvacuation(ServerErp),
+		NewServerEvacuation(ServerHerp), NewServerEvacuation(ServerDerp)}
 	ServersListFilteredByEvacuationPolicyExpected = []servers.Server{ServerDerp, ServerHerp}
 )
 

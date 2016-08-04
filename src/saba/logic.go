@@ -36,7 +36,7 @@ type Cluster struct {
 }
 
 // Creates a slice of every host resources
-func GetAvailableClusterResources(client *gophercloud.ServiceClient, cluster *Cluster) error {
+func (c *Cluster) UpdateAvailableClusterResources(client *gophercloud.ServiceClient) error {
 	list, err := hypervisors.GetDetailsList(client).ExtractDetails()
 	if err != nil {
 		return err
@@ -52,8 +52,8 @@ func GetAvailableClusterResources(client *gophercloud.ServiceClient, cluster *Cl
 		res.FreeDiskGB = hypervisorDetails.FreeDiskGB
 		res.DistAvailableLeast = hypervisorDetails.DistAvailableLeast
 		res.FreeRamMB = hypervisorDetails.FreeRamMB
-		cluster.Resources = make(map[string]HypervisorFreeResources)
-		cluster.Resources[hypervisorDetails.HypervisorHostname] = res
+		c.Resources = make(map[string]HypervisorFreeResources)
+		c.Resources[hypervisorDetails.HypervisorHostname] = res
 	}
 	return nil
 }
@@ -94,30 +94,6 @@ func FilterVMsOnEvacuationPolicy(serversSlice []servers.Server) (filteredServers
 	return filteredServersSlice
 }
 
-type ByRange []servers.Server
-
-func (a ByRange) Len() int {return len(a)}
-
-func (a ByRange) Swap(i, j int) {a[i], a[j] = a[j], a[i]}
-
-func (a ByRange) Less(i, j int) bool {
-	range_i, ok := a[i].Metadata["evacuation_range"].(int)
-	if !ok {
-		range_i = MinEvacuationRangeValue
-	}
-	range_j, ok := a[j].Metadata["evacuation_range"].(int)
-	if !ok {
-		range_j = MinEvacuationRangeValue
-	}
-	return range_i < range_j
-}
-
-// Sorts ascending by evacuation range (0 is the biggest priority)
-// If no priority declared - counted as min priority
-func SortVMsOnEvacuationRange(serversSlice []servers.Server) {
-	sort.Sort(ByRange(serversSlice))
-}
-
 
 type ServerEvacuation struct {
 	ServerBefore servers.Server
@@ -132,6 +108,32 @@ func NewServerEvacuation (server servers.Server) *ServerEvacuation {
 	}
 }
 
+type ByRange []*ServerEvacuation
+
+func (a ByRange) Len() int {return len(a)}
+
+func (a ByRange) Swap(i, j int) {a[i], a[j] = a[j], a[i]}
+
+func (a ByRange) Less(i, j int) bool {
+	range_i, ok := a[i].ServerBefore.Metadata["evacuation_range"].(int)
+	if !ok {
+		range_i = MinEvacuationRangeValue
+	}
+	range_j, ok := a[j].ServerBefore.Metadata["evacuation_range"].(int)
+	if !ok {
+		range_j = MinEvacuationRangeValue
+	}
+	// min should be last - easy pop from slice
+	return range_i > range_j
+}
+
+// Sorts ascending by evacuation range (0 is the biggest priority)
+// If no priority declared - counted as min priority
+func SortVMsOnEvacuationRange(evac []*ServerEvacuation) {
+	sort.Sort(ByRange(evac))
+}
+
+
 // Run command "nova evacuate .." for a selected VM
 // Nova runs command synchronously,so have to wait for
 // result.
@@ -143,6 +145,8 @@ func (se *ServerEvacuation) Evacuate() error {
 	// TODO: 5. worker gets a hypervisor detail for this host and updates Cluster Resourses
 	// TODO: STEPS:
 	// TODO: 3. create pool of workers
+	// TODO: 4. update Cluster Resources
+	// TODO: 5. delete claim and evac obj
 
 	return nil
 }
