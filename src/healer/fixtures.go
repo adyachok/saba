@@ -1,6 +1,14 @@
-package saba
+package healer
 
-import "github.com/rackspace/gophercloud/openstack/compute/v2/servers"
+import (
+	"fmt"
+	"net/http"
+	"testing"
+
+	"github.com/rackspace/gophercloud/openstack/compute/v2/servers"
+	th "github.com/rackspace/gophercloud/testhelper"
+	"github.com/rackspace/gophercloud/testhelper/client"
+)
 
 
 const ServersListBody = `
@@ -576,3 +584,33 @@ const ServerDerpFailedEvacuationRespBody = `
 		}
 	}
 `
+
+var ResourceClaimExpected = &ResourcesClaim{
+	ServerUUID:     "9e5476bd-a4ec-4653-93d6-72c93aa682ba",
+	FlavorId:		"1",
+	DiskGB:       	1,
+	RamMB:        	512,
+	Vcpus:      	1,
+	RXTXFactor: 	1,
+}
+
+func HandleFlavorGetSuccessfully(t *testing.T) {
+	th.Mux.HandleFunc("/flavors/1", func(w http.ResponseWriter, r *http.Request) {
+		th.TestMethod(t, r, "GET")
+		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
+
+		w.Header().Add("Content-Type", "application/json")
+		fmt.Fprintf(w, `
+			{
+				"flavor": {
+					"id": "1",
+					"name": "m1.tiny",
+					"disk": 1,
+					"ram": 512,
+					"vcpus": 1,
+					"rxtx_factor": 1
+				}
+			}
+		`)
+	})
+}

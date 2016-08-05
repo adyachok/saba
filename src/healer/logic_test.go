@@ -1,4 +1,4 @@
-package saba
+package healer
 
 import (
 	"fmt"
@@ -123,4 +123,22 @@ func TestCheckServerEvacuationFail(t *testing.T) {
 	}
 
 	th.AssertNoErr(t, err)
+}
+
+func TestClaimResources(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	HandleFlavorGetSuccessfully(t)
+
+	claim, err := NewResourcesClaim(ServerDerp)
+	if err != nil {
+		t.Errorf("Resources claim object creation error: %s", err)
+	}
+	err = claim.ClaimResources(client.ServiceClient())
+	if err != nil {
+		t.Errorf("Resources claim error: %s", err)
+	}
+	th.AssertNoErr(t, err)
+	th.AssertDeepEquals(t, ResourceClaimExpected, claim)
 }

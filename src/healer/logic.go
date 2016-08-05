@@ -1,10 +1,12 @@
-package saba
+package healer
 
 import (
+	"errors"
 	"sort"
 
 	"github.com/adyachok/bacsi/openstack/v2/hypervisors"
 	"github.com/rackspace/gophercloud"
+	"github.com/rackspace/gophercloud/openstack/compute/v2/flavors"
 	"github.com/rackspace/gophercloud/openstack/compute/v2/servers"
 	"github.com/rackspace/gophercloud/pagination"
 	log "github.com/Sirupsen/logrus"
@@ -16,6 +18,12 @@ const (
  	MinEvacuationRangeValue = int(MaxUint >> 1) // MaxInt will be min priority
 )
 
+
+var FlavorsCache map[string] flavors.Flavor
+
+func init() {
+	FlavorsCache = make(map[string] flavors.Flavor)
+}
 
 type HypervisorFreeResources struct {
 	HypervisorHostname string		`mapstructure:"hypervisor_hostname"`
@@ -58,9 +66,45 @@ func (c *Cluster) UpdateAvailableClusterResources(client *gophercloud.ServiceCli
 	return nil
 }
 
-// Creates claim for resources booting VM
-func claimResources(){
+type ResourcesClaim struct {
+	ServerUUID string // UUID of VM
+	FlavorId   string		`mapstructure: flavor_id`
+	Vcpus      int
+	DiskGB     int			`mapstructure:"disk_gb"`
+	RamMB      int			`mapstructure:"ram_mb"`
+	RXTXFactor float64		`mapstructure: rxtx_factor`
+}
 
+func NewResourcesClaim(server servers.Server) (*ResourcesClaim, error) {
+	flavorId, ok := server.Flavor["id"].(string)
+	if !ok {
+		return nil, errors.New("Could not create the claim. Reason flavor id convertion to int wasn't successful.")
+	}
+	return &ResourcesClaim{
+		ServerUUID: server.ID,
+		FlavorId:	flavorId,
+	}, nil
+}
+
+// Creates claim for resources booting VM
+func (r* ResourcesClaim) ClaimResources(client *gophercloud.ServiceClient) error{
+	flavor, ok:= FlavorsCache[r.FlavorId]
+	if !ok {
+		flavorPointer, err := flavors.Get(client, r.FlavorId).Extract()
+		if err != nil {
+			return err
+		}
+		flavor = *flavorPointer
+	}
+
+	r.Vcpus = flavor.VCPUs
+	r.DiskGB = flavor.Disk
+	r.RamMB = flavor.RAM
+	r.RXTXFactor = flavor.RxTxFactor
+
+	FlavorsCache[flavor.ID] = flavor
+
+	return nil
 }
 
 // TODO: gophercloud gives opportunity to get VMs updated after some time before
