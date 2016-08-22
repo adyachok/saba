@@ -30,11 +30,13 @@ type HypervisorFreeResources struct {
 	Id int
 	State string
 	Status string
-	FreeVcpus int16					`mapstructure:"free_vcpus"` 	// Vcpus - VcpuUsed
+	// Vcpus - VcpuUsed
+	FreeVcpus int16					`mapstructure:"free_vcpus"`
 	HostIP string 					`mapstructure:"host_ip"`
 	FreeDiskGB int16				`mapstructure:"free_disk_gb"`
 	// disk_available_least = free_disk_gb - disk_overcommit_size
-	// disk_overcommit_size = virtual size of disks of all instance instance - used disk size of all instances
+	// disk_overcommit_size = virtual size of disks of all instance - used disk
+	// size of all instances
 	DistAvailableLeast int16		`mapstructure:"disk_available_least"`
 	FreeRamMB int32					`mapstructure:"free_ram_mb"`
 }
@@ -67,7 +69,8 @@ func (c *Cluster) UpdateAvailableClusterResources(client *gophercloud.ServiceCli
 }
 
 type ResourcesClaim struct {
-	ServerUUID string // UUID of VM
+	// UUID of VM
+	ServerUUID string
 	FlavorId   string		`mapstructure: flavor_id`
 	Vcpus      int
 	DiskGB     int			`mapstructure:"disk_gb"`
@@ -78,7 +81,7 @@ type ResourcesClaim struct {
 func NewResourcesClaim(server servers.Server) (*ResourcesClaim, error) {
 	flavorId, ok := server.Flavor["id"].(string)
 	if !ok {
-		return nil, errors.New("Could not create the claim. Reason flavor id convertion to int wasn't successful.")
+		return nil, errors.New("Could not create the claim. Reason flavor id convertion to string wasn't successful.")
 	}
 	return &ResourcesClaim{
 		ServerUUID: server.ID,
@@ -86,7 +89,7 @@ func NewResourcesClaim(server servers.Server) (*ResourcesClaim, error) {
 	}, nil
 }
 
-// Creates claim for resources booting VM
+// Creates claim of resources for VM booting
 func (r* ResourcesClaim) ClaimResources(client *gophercloud.ServiceClient) error{
 	flavor, ok:= FlavorsCache[r.FlavorId]
 	if !ok {
@@ -106,6 +109,43 @@ func (r* ResourcesClaim) ClaimResources(client *gophercloud.ServiceClient) error
 
 	return nil
 }
+
+// Helper to manage resource claims
+type ResourcesClaimManager struct {
+	ResourcesClaims 	[]ResourcesClaim
+	TotallyUsedVcpus	int
+	TotallyUsedDiskGB	int
+	TotallyUsedRamMB	int
+}
+
+func (rcm *ResourcesClaimManager) RemoveClaim (claim ResourcesClaim) {
+	idx := rcm.getIndex(claim)
+	if idx != -1 {
+		rcm.ResourcesClaims = append(rcm.ResourcesClaims[:idx], rcm.ResourcesClaims[idx+1:]...)
+
+		rcm.TotallyUsedVcpus -= claim.Vcpus
+		rcm.TotallyUsedDiskGB -= claim.DiskGB
+		rcm.TotallyUsedRamMB -= claim.RamMB
+	}
+}
+
+func (rcm *ResourcesClaimManager) AppendClaim (claim ResourcesClaim) {
+	rcm.TotallyUsedVcpus += claim.Vcpus
+	rcm.TotallyUsedDiskGB += claim.DiskGB
+	rcm.TotallyUsedRamMB += claim.RamMB
+
+	rcm.ResourcesClaims = append(rcm.ResourcesClaims, claim)
+}
+
+func (rcm *ResourcesClaimManager) getIndex (claim ResourcesClaim) int {
+	for idx, el := range rcm.ResourcesClaims {
+		if el == claim {
+			return idx
+		}
+	}
+	return -1
+}
+
 
 // TODO: gophercloud gives opportunity to get VMs updated after some time before
 // 					servers requests  List ("changes-since")
@@ -142,13 +182,16 @@ func FilterVMsOnEvacuationPolicy(serversSlice []servers.Server) (filteredServers
 type ServerEvacuation struct {
 	ServerBefore servers.Server
 	ServerCurrent servers.Server
-	isMigratedSuccessfully bool
+	IsMigratedSuccessfully bool
+	// VM can be scheduled by Healer to different host it actually booted
+	// so we need to clear claims of this host
+	ScheduledTo string
 }
 
 func NewServerEvacuation (server servers.Server) *ServerEvacuation {
 	return &ServerEvacuation{
 		ServerBefore: server,
-		isMigratedSuccessfully: false,
+		IsMigratedSuccessfully: false,
 	}
 }
 
@@ -168,6 +211,7 @@ func (a ByRange) Less(i, j int) bool {
 		range_j = MinEvacuationRangeValue
 	}
 	// min should be last - easy pop from slice
+	// min value = max priority
 	return range_i > range_j
 }
 
@@ -181,7 +225,7 @@ func SortVMsOnEvacuationRange(evac []*ServerEvacuation) {
 // Run command "nova evacuate .." for a selected VM
 // Nova runs command synchronously,so have to wait for
 // result.
-func (se *ServerEvacuation) Evacuate() error {
+func (se *ServerEvacuation) Evacuate(client *gophercloud.ServiceClient) error {
 	// TODO: 1. create a pool of workers (max size = hypervisors count)
 	// TODO: 2. each worker sends Nova command  to evacuate selected VM
 	// TODO: 3. worker waits for the result.
@@ -195,13 +239,22 @@ func (se *ServerEvacuation) Evacuate() error {
 	return nil
 }
 
+func (se *ServerEvacuation) Claim (client *gophercloud.ServiceClient) (ResourcesClaim, error) {
+	claim, err := NewResourcesClaim(se.ServerBefore)
+	if err != nil {
+		log.Error("Could not create a claim for server %s", se.ServerBefore.Name)
+	}
+	claim.ClaimResources(client)
+	return *claim, err
+}
+
 func (se *ServerEvacuation) CheckServerEvacuation(client *gophercloud.ServiceClient) error{
 	serverNewObj, err := servers.Get(client, se.ServerBefore.ID).Extract()
 	if err != nil {
 		return err
 	}
 	if serverNewObj.Status == "ACTIVE" && se.ServerBefore.HostID != serverNewObj.HostID {
-		se.isMigratedSuccessfully = true
+		se.IsMigratedSuccessfully = true
 
 	}
 	se.ServerCurrent = *serverNewObj
