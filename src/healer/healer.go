@@ -45,6 +45,12 @@ func NewHealer(event <- chan interface{}) *Healer {
 }
 
 func (h *Healer) Shutdown() {
+	// http://stackoverflow.com/questions/34897843/why-does-go-panic-on-writing-to-a-closed-channel
+	//defer func() {
+	//	if r := recover(); r != nil {
+	//		log.Infof("Recovered in f", r)
+	//	}
+	//}()
 	close(h.evacuationCh)
 }
 
@@ -55,7 +61,8 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 			case event, ok := <-h.eventCh:
 				if !ok {
 					h.Shutdown()
-					break
+					// TODO: wait for subprocesses to stop
+					return
 				}
 				evt, ok := event.(string)
 				if !ok {

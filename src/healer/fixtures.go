@@ -203,6 +203,15 @@ const ServersListBody = `
 }
 `
 
+func HandleServersSuccessfully(t *testing.T){
+	th.Mux.HandleFunc("/servers/detail", func(w http.ResponseWriter, r *http.Request) {
+		th.TestMethod(t, r, "GET")
+		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
+
+		w.Header().Add("Content-Type", "application/json")
+		fmt.Fprintf(w, ServersListBody)
+	})
+}
 
 const ServerErpResponseBody = `
 {

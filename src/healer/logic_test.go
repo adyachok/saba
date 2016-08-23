@@ -63,14 +63,7 @@ func TestFilterVMsOnEvacuationPolicy(t *testing.T) {
 func TestGetVMsToEvacuate(t *testing.T) {
 	th.SetupHTTP()
 	defer th.TeardownHTTP()
-
-	th.Mux.HandleFunc("/servers/detail", func(w http.ResponseWriter, r *http.Request) {
-		th.TestMethod(t, r, "GET")
-		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
-
-		w.Header().Add("Content-Type", "application/json")
-		fmt.Fprintf(w, ServersListBody)
-	})
+	HandleServersSuccessfully(t)
 
 	serversSlice, err := GetVMsToEvacuate(client.ServiceClient(), "compute-0-4.domain.tld")
 
