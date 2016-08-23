@@ -96,7 +96,7 @@ func TestCheckServerEvacuationSuccess(t *testing.T) {
 	se := NewServerEvacuation(ServerDerp)
 	err := se.CheckServerEvacuation(client.ServiceClient())
 
-	if !se.isMigratedSuccessfully {
+	if !se.IsEvacuatedSuccessfully {
 		t.Errorf("Expected server Derp to be evacuated")
 	}
 
@@ -118,7 +118,7 @@ func TestCheckServerEvacuationFail(t *testing.T) {
 
 	err := se.CheckServerEvacuation(client.ServiceClient())
 
-	if se.isMigratedSuccessfully {
+	if se.IsEvacuatedSuccessfully {
 		t.Errorf("Expected server Derp not to be evacuated")
 	}
 
@@ -141,4 +141,21 @@ func TestClaimResources(t *testing.T) {
 	}
 	th.AssertNoErr(t, err)
 	th.AssertDeepEquals(t, ResourceClaimExpected, claim)
+}
+
+func TestClaimsCount(t *testing.T) {
+	rcm := NewResourcesClaimManager()
+	rcm.AppendClaim(*ResourceClaimExpected)
+
+	th.AssertEquals(t, 1, len(rcm.ResourcesClaims))
+	th.AssertEquals(t, ResourceClaimExpected.DiskGB, rcm.TotallyUsedDiskGB)
+	th.AssertEquals(t, ResourceClaimExpected.RamMB, rcm.TotallyUsedRamMB)
+	th.AssertEquals(t, ResourceClaimExpected.Vcpus, rcm.TotallyUsedVcpus)
+
+	rcm.RemoveClaim(*ResourceClaimExpected)
+	th.AssertEquals(t, 0, len(rcm.ResourcesClaims))
+	th.AssertEquals(t, 0, rcm.TotallyUsedDiskGB)
+	th.AssertEquals(t, 0, rcm.TotallyUsedRamMB)
+	th.AssertEquals(t, 0, rcm.TotallyUsedVcpus)
+
 }

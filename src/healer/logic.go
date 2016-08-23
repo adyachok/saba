@@ -112,17 +112,22 @@ func (r* ResourcesClaim) ClaimResources(client *gophercloud.ServiceClient) error
 
 // Helper to manage resource claims
 type ResourcesClaimManager struct {
-	ResourcesClaims 	[]ResourcesClaim
+	// Mapping of instance ID and resources it needs
+	ResourcesClaims 	map[string]ResourcesClaim
 	TotallyUsedVcpus	int
 	TotallyUsedDiskGB	int
 	TotallyUsedRamMB	int
 }
 
-func (rcm *ResourcesClaimManager) RemoveClaim (claim ResourcesClaim) {
-	idx := rcm.getIndex(claim)
-	if idx != -1 {
-		rcm.ResourcesClaims = append(rcm.ResourcesClaims[:idx], rcm.ResourcesClaims[idx+1:]...)
+func NewResourcesClaimManager() *ResourcesClaimManager {
+	return &ResourcesClaimManager{
+		ResourcesClaims:	map[string]ResourcesClaim{},
+	}
+}
 
+func (rcm *ResourcesClaimManager) RemoveClaim (claim ResourcesClaim) {
+	if rcm.keyExists(claim) {
+		delete(rcm.ResourcesClaims, claim.ServerUUID)
 		rcm.TotallyUsedVcpus -= claim.Vcpus
 		rcm.TotallyUsedDiskGB -= claim.DiskGB
 		rcm.TotallyUsedRamMB -= claim.RamMB
@@ -133,17 +138,15 @@ func (rcm *ResourcesClaimManager) AppendClaim (claim ResourcesClaim) {
 	rcm.TotallyUsedVcpus += claim.Vcpus
 	rcm.TotallyUsedDiskGB += claim.DiskGB
 	rcm.TotallyUsedRamMB += claim.RamMB
-
-	rcm.ResourcesClaims = append(rcm.ResourcesClaims, claim)
+	rcm.ResourcesClaims[claim.ServerUUID] = claim
 }
 
-func (rcm *ResourcesClaimManager) getIndex (claim ResourcesClaim) int {
-	for idx, el := range rcm.ResourcesClaims {
-		if el == claim {
-			return idx
-		}
+func (rcm *ResourcesClaimManager) keyExists (claim ResourcesClaim) bool {
+	_, ok := rcm.ResourcesClaims[claim.ServerUUID]
+	if ok {
+		return true
 	}
-	return -1
+	return false
 }
 
 
@@ -180,18 +183,18 @@ func FilterVMsOnEvacuationPolicy(serversSlice []servers.Server) (filteredServers
 
 
 type ServerEvacuation struct {
-	ServerBefore servers.Server
-	ServerCurrent servers.Server
-	IsMigratedSuccessfully bool
+	ServerBefore            servers.Server
+	ServerCurrent           servers.Server
+	IsEvacuatedSuccessfully bool
 	// VM can be scheduled by Healer to different host it actually booted
 	// so we need to clear claims of this host
-	ScheduledTo string
+	ScheduledTo             string
 }
 
 func NewServerEvacuation (server servers.Server) *ServerEvacuation {
 	return &ServerEvacuation{
-		ServerBefore: server,
-		IsMigratedSuccessfully: false,
+		ServerBefore: 				server,
+		IsEvacuatedSuccessfully:	false,
 	}
 }
 
@@ -254,7 +257,7 @@ func (se *ServerEvacuation) CheckServerEvacuation(client *gophercloud.ServiceCli
 		return err
 	}
 	if serverNewObj.Status == "ACTIVE" && se.ServerBefore.HostID != serverNewObj.HostID {
-		se.IsMigratedSuccessfully = true
+		se.IsEvacuatedSuccessfully = true
 
 	}
 	se.ServerCurrent = *serverNewObj
