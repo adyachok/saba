@@ -623,3 +623,15 @@ func HandleFlavorGetSuccessfully(t *testing.T) {
 		`)
 	})
 }
+
+var HypervisorFreeResources_1 = HypervisorFreeResources {
+	HypervisorHostname: "compute-0-1",
+	Id: 1,
+	State: "active",
+	Status: "active",
+	FreeVcpus: 16,
+	HostIP: "192.168.0.11",
+	FreeDiskGB: 160,
+	DistAvailableLeast: 160,
+	FreeRamMB: 32000,
+}

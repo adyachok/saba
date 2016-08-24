@@ -12,12 +12,6 @@ const (
 	MaxRetries = 4
 )
 
-var cluster Cluster
-
-func init() {
-	cluster = Cluster{}
-}
-
 type Healer struct {
 	// Close of eventCh will shutdown healer
 	eventCh              	<- chan interface{}
@@ -81,7 +75,7 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 							SortVMsOnEvacuationRange(h.Evac_Q)
 						}
 
-						err = cluster.UpdateAvailableClusterResources(client)
+						err = h.cluster.UpdateAvailableClusterResources(client)
 						if err != nil {
 							log.Errorf("Error updating cluster available resources: %s", err)
 						}
@@ -103,9 +97,9 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 							}
 
 							select {
-							case h.evacuationCh <- server:
-								h.Scheduled_Q = append(h.Scheduled_Q, server)
-							}
+								case h.evacuationCh <- server:
+									h.Scheduled_Q = append(h.Scheduled_Q, server)
+								}
 						}
 					case evt == "join":
 						// TODO:
@@ -174,9 +168,13 @@ func (h *Healer) schedule(instance *ServerEvacuation, claim ResourcesClaim) erro
 
 // Simple dumb filtering.
 func (h *Healer) filterResources(claim ResourcesClaim, hostname string, resources HypervisorFreeResources) bool {
-	claimsManager := h.Claims_M[hostname]
-
-	if resources.FreeVcpus - int16(claimsManager.TotallyUsedVcpus) <= int16(claim.Vcpus) {
+	claimsManager, ok := h.Claims_M[hostname]
+	if !ok {
+		claimsManager = NewResourcesClaimManager()
+		h.Claims_M[hostname] = claimsManager
+	}
+	free_cpus := resources.FreeVcpus - int16(claimsManager.TotallyUsedVcpus)
+	if free_cpus <= int16(claim.Vcpus) {
 		return false
 	}
 	if resources.FreeDiskGB - int16(claimsManager.TotallyUsedDiskGB) <= int16(claim.DiskGB) {

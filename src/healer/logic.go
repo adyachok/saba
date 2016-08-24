@@ -51,6 +51,8 @@ func (c *Cluster) UpdateAvailableClusterResources(client *gophercloud.ServiceCli
 	if err != nil {
 		return err
 	}
+	c.Resources = make(map[string]HypervisorFreeResources)
+
 	for _, hypervisorDetails := range list {
 		res := HypervisorFreeResources{}
 		res.HypervisorHostname = hypervisorDetails.HypervisorHostname
@@ -62,7 +64,6 @@ func (c *Cluster) UpdateAvailableClusterResources(client *gophercloud.ServiceCli
 		res.FreeDiskGB = hypervisorDetails.FreeDiskGB
 		res.DistAvailableLeast = hypervisorDetails.DistAvailableLeast
 		res.FreeRamMB = hypervisorDetails.FreeRamMB
-		c.Resources = make(map[string]HypervisorFreeResources)
 		c.Resources[hypervisorDetails.HypervisorHostname] = res
 	}
 	return nil
