@@ -14,27 +14,29 @@ const (
 
 type Healer struct {
 	// Close of eventCh will shutdown healer
-	eventCh              	<- chan interface{}
-	finishedEvacuationCh 	chan EvacContainer
-	evacuationCh         	chan *EvacContainer
-	cluster              	Cluster
+	eventCh        <- chan interface{}
+	finishedEvacCh chan EvacContainer
+	evacuationCh   chan *EvacContainer
+	assertedEvacCh chan *EvacContainer
+	cluster        Cluster
 	// mapping between hypervisor hostname {key} and claims to this hypervisor
-	Claims_M             	map[string]*ResourcesClaimManager
-	Evac_Q               	[] *EvacContainer
-	Scheduled_Q          	[] *EvacContainer
-	FailedEvac_Q         	[] EvacContainer
+	Claims_M       map[string]*ResourcesClaimManager
+	Evac_Q         [] *EvacContainer
+	Scheduled_Q    [] *EvacContainer
+	FailedEvac_Q   [] EvacContainer
 }
 
 func NewHealer(event <- chan interface{}) *Healer {
 	return &Healer{
-		eventCh: 				event,
-		finishedEvacuationCh: 	make(chan EvacContainer),
-		evacuationCh: 			make(chan *EvacContainer),
-		cluster: 				Cluster{},
+		eventCh: 		event,
+		finishedEvacCh: make(chan EvacContainer),
+		evacuationCh: 	make(chan *EvacContainer),
+		assertedEvacCh:	make(chan *EvacContainer),
+		cluster: 		Cluster{},
 		// Mapping of compute id {key} and slices of claimed resources
-		Claims_M: 				map[string] *ResourcesClaimManager{},
-		Evac_Q: 				[] *EvacContainer{},
-		Scheduled_Q: 			[] *EvacContainer{},
+		Claims_M: 		map[string] *ResourcesClaimManager{},
+		Evac_Q: 		[] *EvacContainer{},
+		Scheduled_Q: 	[] *EvacContainer{},
 	}
 }
 
@@ -99,7 +101,7 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 							select {
 								case h.evacuationCh <- server:
 									h.Scheduled_Q = append(h.Scheduled_Q, server)
-								}
+							}
 						}
 					case evt == "join":
 						// TODO:
@@ -109,7 +111,7 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 
 				}
 
-			case server := <-h.finishedEvacuationCh:
+			case server := <-h.finishedEvacCh:
 				for idx, server_ := range h.Scheduled_Q {
 					if server_.ServerBefore.ID == server.ServerBefore.ID {
 						// Remove from scheduled  queue

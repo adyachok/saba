@@ -6,6 +6,7 @@ import (
 
 	"github.com/rackspace/gophercloud/openstack/compute/v2/servers"
 	log "github.com/Sirupsen/logrus"
+	"github.com/rackspace/gophercloud/pagination"
 )
 
 type EvacContainer struct {
@@ -100,4 +101,29 @@ func (se *EvacContainer) SetTask(client *gophercloud.ServiceClient, task string)
 	case task == "check evacuation":
 		se.CheckServerEvacuation(client)
 	}
+}
+
+
+// Creates a splice of VMs to evacuate with the rank.
+func GetVMsToEvacuate(client *gophercloud.ServiceClient, hostname string) (serversSlice []servers.Server, err error) {
+	opts := servers.ListOpts{Host: hostname, AllTenants: true}
+	servers.List(client, opts).EachPage(func(page pagination.Page) (bool, error) {
+		list, err := servers.ExtractServers(page)
+		if err != nil {
+			log.Errorf("While extracting servers got: %s", err)
+		}
+		serversSlice = append(serversSlice, FilterVMsOnEvacuationPolicy(list)...)
+		return true, nil
+	})
+
+	return serversSlice, nil
+}
+
+func FilterVMsOnEvacuationPolicy(serversSlice []servers.Server) (filteredServersSlice []servers.Server){
+	for _, server := range serversSlice {
+		if server.Metadata["evacuation_policy"] == "Evacuation" {
+			filteredServersSlice = append(filteredServersSlice, server)
+		}
+	}
+	return filteredServersSlice
 }

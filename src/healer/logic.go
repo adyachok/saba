@@ -7,8 +7,6 @@ import (
 	"github.com/rackspace/gophercloud"
 	"github.com/rackspace/gophercloud/openstack/compute/v2/flavors"
 	"github.com/rackspace/gophercloud/openstack/compute/v2/servers"
-	"github.com/rackspace/gophercloud/pagination"
-	log "github.com/Sirupsen/logrus"
 )
 
 
@@ -155,28 +153,3 @@ func (rcm *ResourcesClaimManager) keyExists (claim ResourcesClaim) bool {
 // TODO: this means we can query periodically about updates and maintain the state
 // TODO: of the cluster in our objects, so when the fail signal comes we will have
 // TODO: information about all required by VM resources.
-
-
-// Creates a splice of VMs to evacuate with the rank.
-func GetVMsToEvacuate(client *gophercloud.ServiceClient, hostname string) (serversSlice []servers.Server, err error) {
-	opts := servers.ListOpts{Host: hostname, AllTenants: true}
-	servers.List(client, opts).EachPage(func(page pagination.Page) (bool, error) {
-		list, err := servers.ExtractServers(page)
-		if err != nil {
-			log.Errorf("While extracting servers got: %s", err)
-		}
-		serversSlice = append(serversSlice, FilterVMsOnEvacuationPolicy(list)...)
-		return true, nil
-	})
-
-	return serversSlice, nil
-}
-
-func FilterVMsOnEvacuationPolicy(serversSlice []servers.Server) (filteredServersSlice []servers.Server){
-	for _, server := range serversSlice {
-		if server.Metadata["evacuation_policy"] == "Evacuation" {
-			filteredServersSlice = append(filteredServersSlice, server)
-		}
-	}
-	return filteredServersSlice
-}
