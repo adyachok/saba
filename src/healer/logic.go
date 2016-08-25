@@ -183,7 +183,8 @@ func FilterVMsOnEvacuationPolicy(serversSlice []servers.Server) (filteredServers
 }
 
 
-type ServerEvacuation struct {
+type EvacContainer struct {
+	Id	 					string
 	ServerBefore            servers.Server
 	ServerCurrent           servers.Server
 	IsEvacuatedSuccessfully bool
@@ -192,14 +193,15 @@ type ServerEvacuation struct {
 	ScheduledTo             string
 }
 
-func NewServerEvacuation (server servers.Server) *ServerEvacuation {
-	return &ServerEvacuation{
+func NewEvacContainer(server servers.Server) *EvacContainer {
+	return &EvacContainer{
+		Id:							server.ID,
 		ServerBefore: 				server,
 		IsEvacuatedSuccessfully:	false,
 	}
 }
 
-type ByRange []*ServerEvacuation
+type ByRange []*EvacContainer
 
 func (a ByRange) Len() int {return len(a)}
 
@@ -221,7 +223,7 @@ func (a ByRange) Less(i, j int) bool {
 
 // Sorts ascending by evacuation range (0 is the biggest priority)
 // If no priority declared - counted as min priority
-func SortVMsOnEvacuationRange(evac []*ServerEvacuation) {
+func SortVMsOnEvacuationRange(evac []*EvacContainer) {
 	sort.Sort(ByRange(evac))
 }
 
@@ -229,7 +231,7 @@ func SortVMsOnEvacuationRange(evac []*ServerEvacuation) {
 // Run command "nova evacuate .." for a selected VM
 // Nova runs command synchronously,so have to wait for
 // result.
-func (se *ServerEvacuation) Evacuate(client *gophercloud.ServiceClient) error {
+func (se *EvacContainer) Evacuate(client *gophercloud.ServiceClient) error {
 	// TODO: 1. create a pool of workers (max size = hypervisors count)
 	// TODO: 2. each worker sends Nova command  to evacuate selected VM
 	// TODO: 3. worker waits for the result.
@@ -243,7 +245,7 @@ func (se *ServerEvacuation) Evacuate(client *gophercloud.ServiceClient) error {
 	return nil
 }
 
-func (se *ServerEvacuation) Claim (client *gophercloud.ServiceClient) (ResourcesClaim, error) {
+func (se *EvacContainer) Claim (client *gophercloud.ServiceClient) (ResourcesClaim, error) {
 	claim, err := NewResourcesClaim(se.ServerBefore)
 	if err != nil {
 		log.Error("Could not create a claim for server %s", se.ServerBefore.Name)
@@ -252,8 +254,8 @@ func (se *ServerEvacuation) Claim (client *gophercloud.ServiceClient) (Resources
 	return *claim, err
 }
 
-func (se *ServerEvacuation) CheckServerEvacuation(client *gophercloud.ServiceClient) error{
-	serverNewObj, err := servers.Get(client, se.ServerBefore.ID).Extract()
+func (se *EvacContainer) CheckServerEvacuation(client *gophercloud.ServiceClient) error{
+	serverNewObj, err := servers.Get(client, se.Id).Extract()
 	if err != nil {
 		return err
 	}

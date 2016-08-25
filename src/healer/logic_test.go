@@ -33,9 +33,9 @@ func TestGetAvailableClusterResources(t *testing.T) {
 }
 
 func TestSortVMsOnEvacuationRange(t *testing.T) {
-	var testServersList []*ServerEvacuation
+	var testServersList []*EvacContainer
 	for _, serv := range ServersList {
-		testServersList = append(testServersList, NewServerEvacuation(serv))
+		testServersList = append(testServersList, NewEvacContainer(serv))
 	}
 
 	SortVMsOnEvacuationRange(testServersList)
@@ -86,7 +86,7 @@ func TestCheckServerEvacuationSuccess(t *testing.T) {
 		w.Header().Add("Content-Type", "application/json")
 		fmt.Fprintf(w, ServerDerpSuccessfulEvacuationRespBody)
 	})
-	se := NewServerEvacuation(ServerDerp)
+	se := NewEvacContainer(ServerDerp)
 	err := se.CheckServerEvacuation(client.ServiceClient())
 
 	if !se.IsEvacuatedSuccessfully {
@@ -107,7 +107,7 @@ func TestCheckServerEvacuationFail(t *testing.T) {
 		w.Header().Add("Content-Type", "application/json")
 		fmt.Fprintf(w, ServerDerpFailedEvacuationRespBody)
 	})
-	se := NewServerEvacuation(ServerDerp)
+	se := NewEvacContainer(ServerDerp)
 
 	err := se.CheckServerEvacuation(client.ServiceClient())
 

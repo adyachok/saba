@@ -15,26 +15,26 @@ const (
 type Healer struct {
 	// Close of eventCh will shutdown healer
 	eventCh              	<- chan interface{}
-	finishedEvacuationCh 	chan ServerEvacuation
-	evacuationCh         	chan *ServerEvacuation
+	finishedEvacuationCh 	chan EvacContainer
+	evacuationCh         	chan *EvacContainer
 	cluster              	Cluster
 	// mapping between hypervisor hostname {key} and claims to this hypervisor
 	Claims_M             	map[string]*ResourcesClaimManager
-	Evac_Q               	[] *ServerEvacuation
-	Scheduled_Q          	[] *ServerEvacuation
-	FailedEvac_Q         	[] ServerEvacuation
+	Evac_Q               	[] *EvacContainer
+	Scheduled_Q          	[] *EvacContainer
+	FailedEvac_Q         	[] EvacContainer
 }
 
 func NewHealer(event <- chan interface{}) *Healer {
 	return &Healer{
 		eventCh: 				event,
-		finishedEvacuationCh: 	make(chan ServerEvacuation),
-		evacuationCh: 			make(chan *ServerEvacuation),
+		finishedEvacuationCh: 	make(chan EvacContainer),
+		evacuationCh: 			make(chan *EvacContainer),
 		cluster: 				Cluster{},
 		// Mapping of compute id {key} and slices of claimed resources
 		Claims_M: 				map[string] *ResourcesClaimManager{},
-		Evac_Q: 				[] *ServerEvacuation{},
-		Scheduled_Q: 			[] *ServerEvacuation{},
+		Evac_Q: 				[] *EvacContainer{},
+		Scheduled_Q: 			[] *EvacContainer{},
 	}
 }
 
@@ -133,15 +133,15 @@ func (h *Healer) getFailedHostname() string {
 	return "compute-0-1"
 }
 
-func (h *Healer) updateEvacuationQueueWithRetry(client *gophercloud.ServiceClient, hostname string) []*ServerEvacuation {
+func (h *Healer) updateEvacuationQueueWithRetry(client *gophercloud.ServiceClient, hostname string) []*EvacContainer {
 	for i := 0; i <= MaxRetries; i++ {
 		vms, err := GetVMsToEvacuate(client, hostname)
 		if err != nil {
 			log.Errorf("Got error: %s during get VMs to evacuate", err)
 		}else {
-			vms_ := []*ServerEvacuation{}
+			vms_ := []*EvacContainer{}
 			for _, vm := range vms {
-				se := NewServerEvacuation(vm)
+				se := NewEvacContainer(vm)
 				vms_ = append(vms_, se)
 			}
 			return vms_
@@ -152,7 +152,7 @@ func (h *Healer) updateEvacuationQueueWithRetry(client *gophercloud.ServiceClien
 
 // Find out appropriate host to evacuate an instance or add instance to the
 // failing evacuation list
-func (h *Healer) schedule(instance *ServerEvacuation, claim ResourcesClaim) error {
+func (h *Healer) schedule(instance *EvacContainer, claim ResourcesClaim) error {
 	for hostname, resources := range h.cluster.Resources {
 		if h.filterResources(claim, hostname, resources) {
 			h.Claims_M[hostname].AppendClaim(claim)
@@ -203,7 +203,7 @@ func (h *Healer) forceDownServiceWithRetry(client *gophercloud.ServiceClient, ho
 	return exec_err
 }
 
-func (h *Healer) claimResourcesWithRetry(client *gophercloud.ServiceClient, server *ServerEvacuation) *ResourcesClaim {
+func (h *Healer) claimResourcesWithRetry(client *gophercloud.ServiceClient, server *EvacContainer) *ResourcesClaim {
 	for i:=0; i <= MaxRetries; i++ {
 		claim, err := server.Claim(client)
 		if err != nil {

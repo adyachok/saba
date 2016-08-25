@@ -14,6 +14,8 @@ type Pool struct {
 // TODO: Add logic of two chanals
 // TODO: receive VMs for evacuation
 // TODO: send info about evacuation
+// TODO: Evacuate
+// TODO: Queery for a state of VM
 func NewPool(numProcesses int) *Pool {
 	p := &Pool{
 		tasks: make(chan Worker),
