@@ -30,7 +30,7 @@ func NewEvacQueryManager() *EvacQueryManager {
 type Healer struct {
 	// Close of eventCh will shutdown healer
 	eventCh      <- chan interface{}
-	taskCh       chan *EvacContainer
+	resultCh     chan *EvacContainer
 	cluster      Cluster
 	dispatcher   *Dispatcher
 	// mapping between hypervisor hostname {key} and claims to this hypervisor
@@ -42,17 +42,19 @@ type Healer struct {
 
 func NewHealer(event <- chan interface{}) *Healer {
 
-	return &Healer{
+	healer := &Healer{
 		eventCh: 		event,
-		taskCh: 		make(chan *EvacContainer),
+		resultCh: 		make(chan *EvacContainer),
 		cluster: 		Cluster{},
-		dispatcher:     NewDispatcher(),
 		// Mapping of compute id {key} and slices of claimed resources
 		Claims_M: 		map[string] *ResourcesClaimManager{},
 		Evac_Q: 		[] *EvacContainer{},
 		FailedEvac_Q:   [] EvacContainer{},
 		queryManager: NewEvacQueryManager(),
 	}
+
+	healer.dispatcher = NewDispatcher(healer.resultCh)
+	return healer
 }
 
 func (h *Healer) Shutdown() {
@@ -113,7 +115,9 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 
 						}
 						// TODO: make logic better
-						h.dispatcher.activate()
+						if h.dispatcher.State == "passive" {
+							h.dispatcher.activate()
+						}
 
 					case evt == "join":
 						// TODO:
@@ -123,7 +127,7 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 
 				}
 
-			case container := <-h.taskCh:
+			case container := <-h.resultCh:
 				switch {
 					case container.State == "accepted":
 						h.processAccepedContainer(container)

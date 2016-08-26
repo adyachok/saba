@@ -4,14 +4,16 @@ import "sync"
 
 type Dispatcher struct {
 	// State: active or passive
-	State string
-	taskCh chan EvacContainer
+	State    string
+	taskCh 	 chan *EvacContainer
+	resultCh chan *EvacContainer
 }
 
-func NewDispatcher() *Dispatcher {
+func NewDispatcher(resultChannel chan<- *EvacContainer) *Dispatcher {
 	return &Dispatcher{
 		State: "passive",
-		taskCh: make(chan EvacContainer),
+		taskCh: make(chan *EvacContainer),
+		resultCh: resultChannel,
 	}
 }
 
