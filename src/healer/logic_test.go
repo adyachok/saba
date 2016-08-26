@@ -89,7 +89,7 @@ func TestCheckServerEvacuationSuccess(t *testing.T) {
 	se := NewEvacContainer(ServerDerp)
 	err := se.CheckServerEvacuation(client.ServiceClient())
 
-	if !se.IsEvacuatedSuccessfully {
+	if !se.State {
 		t.Errorf("Expected server Derp to be evacuated")
 	}
 
@@ -111,7 +111,7 @@ func TestCheckServerEvacuationFail(t *testing.T) {
 
 	err := se.CheckServerEvacuation(client.ServiceClient())
 
-	if se.IsEvacuatedSuccessfully {
+	if se.State {
 		t.Errorf("Expected server Derp not to be evacuated")
 	}
 

@@ -10,21 +10,21 @@ import (
 )
 
 type EvacContainer struct {
-	Id	 					string
-	ServerBefore            servers.Server
-	ServerCurrent           servers.Server
-	IsEvacuatedSuccessfully bool
+	Id            string
+	ServerBefore  servers.Server
+	ServerCurrent servers.Server
+	// "scheduled", "accepted", "finished", "failed"
+	State         string
 	// VM can be scheduled by Healer to different host it actually booted
 	// so we need to clear claims of this host
-	ScheduledTo             string
-	Task 					func()
+	ScheduledTo   string
+	Task          func()
 }
 
 func NewEvacContainer(server servers.Server) *EvacContainer {
 	return &EvacContainer{
 		Id:							server.ID,
 		ServerBefore: 				server,
-		IsEvacuatedSuccessfully:	false,
 	}
 }
 
@@ -87,7 +87,11 @@ func (se *EvacContainer) CheckServerEvacuation(client *gophercloud.ServiceClient
 		return err
 	}
 	if serverNewObj.Status == "ACTIVE" && se.ServerBefore.HostID != serverNewObj.HostID {
-		se.IsEvacuatedSuccessfully = true
+		se.State = "finished"
+
+	}
+	if serverNewObj.Status == "ERROR" {
+		se.State = "failed"
 
 	}
 	se.ServerCurrent = *serverNewObj
