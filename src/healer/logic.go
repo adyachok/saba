@@ -146,10 +146,3 @@ func (rcm *ResourcesClaimManager) keyExists (claim ResourcesClaim) bool {
 	}
 	return false
 }
-
-
-// TODO: gophercloud gives opportunity to get VMs updated after some time before
-// 					servers requests  List ("changes-since")
-// TODO: this means we can query periodically about updates and maintain the state
-// TODO: of the cluster in our objects, so when the fail signal comes we will have
-// TODO: information about all required by VM resources.

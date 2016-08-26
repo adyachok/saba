@@ -58,7 +58,7 @@ func NewHealer(event <- chan interface{}) *Healer {
 }
 
 func (h *Healer) Shutdown() {
-	h.dispatcher.passivate()
+	h.dispatcher.shutdown()
 }
 
 func (h *Healer) Heal(client *gophercloud.ServiceClient) {
@@ -112,12 +112,10 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 							h.queryManager.lock.RLock()
 							h.queryManager.Scheduled_Q = append(h.queryManager.Scheduled_Q, server)
 							h.queryManager.lock.RUnlock()
+						}
 
-						}
-						// TODO: make logic better
-						if h.dispatcher.State == "passive" {
-							h.dispatcher.activate()
-						}
+						 h.dispatcher.activate(h.queryManager.Scheduled_Q, h.queryManager.Accepted_Q)
+
 
 					case evt == "join":
 						// TODO:

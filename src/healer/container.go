@@ -69,6 +69,7 @@ func (se *EvacContainer) Evacuate(client *gophercloud.ServiceClient) error {
 	// TODO: 4. update Cluster Resources
 	// TODO: 5. delete claim and evac obj
 
+	se.State = "accepted" //If accepted or fail in case of error
 	return nil
 }
 
@@ -98,12 +99,12 @@ func (se *EvacContainer) CheckServerEvacuation(client *gophercloud.ServiceClient
 	return nil
 }
 
-func (se *EvacContainer) SetTask(client *gophercloud.ServiceClient, task string) {
+func (se *EvacContainer) SetTask(task string) {
 	switch {
 	case task == "evacuate":
-		se.Evacuate(client)
+		se.Task = se.Evacuate
 	case task == "check evacuation":
-		se.CheckServerEvacuation(client)
+		se.Task = se.CheckServerEvacuation
 	}
 }
 
