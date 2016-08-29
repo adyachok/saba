@@ -164,17 +164,19 @@ func (h *Healer) updateEvacuationQueueWithRetry(client *gophercloud.ServiceClien
 
 // Find out appropriate host to evacuate an instance or add instance to the
 // failing evacuation list
-func (h *Healer) schedule(instance *EvacContainer, claim ResourcesClaim) error {
+func (h *Healer) schedule(container *EvacContainer, claim ResourcesClaim) error {
 	for hostname, resources := range h.cluster.Resources {
 		if h.filterResources(claim, hostname, resources) {
 			h.Claims_M[hostname].AppendClaim(claim)
-			instance.ScheduledTo = hostname
+			container.ScheduledTo = hostname
+			container.State = "scheduled"
 			return nil
 		}
 	}
 	err := fmt.Errorf("No valid host found for instance %s", claim.ServerUUID)
 	log.Error(err)
-	h.FailedEvac_Q = append(h.FailedEvac_Q, *instance)
+	container.State = "failed"
+	h.FailedEvac_Q = append(h.FailedEvac_Q, *container)
 	return err
 }
 
