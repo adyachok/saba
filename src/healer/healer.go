@@ -42,7 +42,7 @@ type Healer struct {
 
 func NewHealer(event <- chan interface{}) *Healer {
 
-	healer := &Healer{
+	return &Healer{
 		eventCh: 		event,
 		resultCh: 		make(chan *EvacContainer),
 		cluster: 		Cluster{},
@@ -52,9 +52,6 @@ func NewHealer(event <- chan interface{}) *Healer {
 		FailedEvac_Q:   [] EvacContainer{},
 		queryManager: NewEvacQueryManager(),
 	}
-
-	healer.dispatcher = NewDispatcher(healer.resultCh)
-	return healer
 }
 
 func (h *Healer) Shutdown() {
@@ -62,6 +59,8 @@ func (h *Healer) Shutdown() {
 }
 
 func (h *Healer) Heal(client *gophercloud.ServiceClient) {
+	h.dispatcher = NewDispatcher(client, h.resultCh)
+
 	for {
 		select {
 		// http://stackoverflow.com/questions/13666253/breaking-out-of-a-select-statement-when-all-channels-are-closed
@@ -77,45 +76,8 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 				}
 				switch {
 					case evt == "fail":
-						hostname := h.getFailedHostname()
-						err := h.forceDownServiceWithRetry(client, hostname)
-						// We append new VMs only if compute service was successfully
-						// forced down, in other case VMs won't be successfully evacuated.
-						if err == nil {
-							h.Evac_Q = append(h.Evac_Q, h.updateEvacuationQueueWithRetry(client, hostname)...)
-							// We have evacuation order from max to min - but min value has
-							// biggest evacuation priority, so we have to reverse
-							SortVMsOnEvacuationRange(h.Evac_Q)
-						}
-
-						err = h.cluster.UpdateAvailableClusterResources(client)
-						if err != nil {
-							log.Errorf("Error updating cluster available resources: %s", err)
-						}
-
-						for i := len(h.Evac_Q)-1; i >= 0; i-- {
-							server :=  h.Evac_Q[i]
-							h.Evac_Q = append(h.Evac_Q[:i], h.Evac_Q[i+1:]...)
-
-
-							claim := h.claimResourcesWithRetry(client, server)
-							if claim == nil {
-								h.FailedEvac_Q = append(h.FailedEvac_Q, *server)
-								continue
-							}
-							err = h.schedule(server, *claim)
-							if err != nil {
-								// No available resources found for VM... skipping
-								continue
-							}
-
-							h.queryManager.lock.RLock()
-							h.queryManager.Scheduled_Q = append(h.queryManager.Scheduled_Q, server)
-							h.queryManager.lock.RUnlock()
-						}
-
-						 h.dispatcher.activate(h.queryManager.Scheduled_Q, h.queryManager.Accepted_Q)
-
+						h.prepareVMsEvacuation(client)
+						h.dispatcher.activate(h.queryManager.Scheduled_Q, h.queryManager.Accepted_Q)
 
 					case evt == "join":
 						// TODO:
@@ -130,13 +92,53 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 					case container.State == "accepted":
 						h.processAccepedContainer(container)
 					case container.State == "finised":
-						h.processFinishedContainer(container)
+						h.processFinishedContainer(*container)
 					case container.State == "failed":
-						h.processFailedContainer(container)
+						h.processFailedContainer(*container)
 				}
 		}
 	}
 }
+
+func (h *Healer) prepareVMsEvacuation(client *gophercloud.ServiceClient) {
+	hostname := h.getFailedHostname()
+	err := h.forceDownServiceWithRetry(client, hostname)
+	// We append new VMs only if compute service was successfully
+	// forced down, in other case VMs won't be successfully evacuated.
+	if err == nil {
+		h.Evac_Q = append(h.Evac_Q, h.updateEvacuationQueueWithRetry(client, hostname)...)
+		// We have evacuation order from max to min - but min value has
+		// biggest evacuation priority, so we have to reverse
+		SortVMsOnEvacuationRange(h.Evac_Q)
+	}
+
+	err = h.cluster.UpdateAvailableClusterResources(client)
+	if err != nil {
+		log.Errorf("Error updating cluster available resources: %s", err)
+	}
+
+	for i := len(h.Evac_Q)-1; i >= 0; i-- {
+		server :=  h.Evac_Q[i]
+		h.Evac_Q = append(h.Evac_Q[:i], h.Evac_Q[i+1:]...)
+
+
+		claim := h.claimResourcesWithRetry(client, server)
+		if claim == nil {
+			h.FailedEvac_Q = append(h.FailedEvac_Q, *server)
+			continue
+		}
+		err = h.schedule(server, *claim)
+		if err != nil {
+			// No available resources found for VM... skipping
+			continue
+		}
+
+		h.queryManager.lock.RLock()
+		h.queryManager.Scheduled_Q = append(h.queryManager.Scheduled_Q, server)
+		h.queryManager.lock.RUnlock()
+	}
+}
+
 
 func (h *Healer) getFailedHostname() string {
 	// TODO:
@@ -225,7 +227,7 @@ func (h *Healer) claimResourcesWithRetry(client *gophercloud.ServiceClient, serv
 	return nil
 }
 
-func (h *Healer) processAccepedContainer(container EvacContainer) {
+func (h *Healer) processAccepedContainer(container *EvacContainer) {
 	for idx, _container := range h.queryManager.Scheduled_Q {
 		if _container.Id == container.Id {
 			// Remove from scheduled  queue

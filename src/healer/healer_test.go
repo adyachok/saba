@@ -1,7 +1,6 @@
 package healer
 
 import (
-	"time"
 	"testing"
 
 	"github.com/adyachok/bacsi/openstack/v2/hypervisors"
@@ -45,31 +44,8 @@ func TestHeal(t *testing.T) {
 	evCh := make(chan interface{})
 	healer := NewHealer(evCh)
 
-	VMsToEvacuate := []*EvacContainer{}
-
-	go func (){
-		event := "join"
-		evCh <- event
-
-		time.Sleep(1 * time.Second)
-		event = "fail"
-
-		evCh <- event
-		time.Sleep(1 * time.Second)
-
-		vm := <-healer.evacuationCh
-		VMsToEvacuate = append(VMsToEvacuate, vm)
-
-		vm = <-healer.evacuationCh
-		VMsToEvacuate = append(VMsToEvacuate, vm)
-
-		time.Sleep(1 * time.Second)
-		close(evCh)
-	}()
-
 	client := client.ServiceClient()
-	healer.Heal(client)
+	healer.prepareVMsEvacuation(client)
 
-	th.AssertEquals(t, 2, len(VMsToEvacuate))
+	th.AssertEquals(t, 2, len(healer.queryManager.Scheduled_Q))
 }
-

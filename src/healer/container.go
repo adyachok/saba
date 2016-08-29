@@ -18,7 +18,15 @@ type EvacContainer struct {
 	// VM can be scheduled by Healer to different host it actually booted
 	// so we need to clear claims of this host
 	ScheduledTo   string
-	Task          func()
+}
+
+func (h *EvacContainer) Task(client *gophercloud.ServiceClient) {
+	switch {
+	case h.State == "scheduled":
+		h.Evacuate(client)
+	case h.State == "accepted":
+		h.CheckServerEvacuation(client)
+	}
 }
 
 func NewEvacContainer(server servers.Server) *EvacContainer {
@@ -98,16 +106,6 @@ func (se *EvacContainer) CheckServerEvacuation(client *gophercloud.ServiceClient
 	se.ServerCurrent = *serverNewObj
 	return nil
 }
-
-func (se *EvacContainer) SetTask(task string) {
-	switch {
-	case task == "evacuate":
-		se.Task = se.Evacuate
-	case task == "check evacuation":
-		se.Task = se.CheckServerEvacuation
-	}
-}
-
 
 // Creates a splice of VMs to evacuate with the rank.
 func GetVMsToEvacuate(client *gophercloud.ServiceClient, hostname string) (serversSlice []servers.Server, err error) {
