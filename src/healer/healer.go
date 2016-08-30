@@ -14,14 +14,14 @@ const (
 	MaxRetries = 4
 )
 
-type EvacQueryManager struct {
+type QueueManager struct {
 	lock		    sync.RWMutex
 	Scheduled_Q    [] *EvacContainer
 	Accepted_Q	   [] *EvacContainer
 }
 
-func NewEvacQueryManager() *EvacQueryManager {
-	return &EvacQueryManager{
+func NewQueueManager() *QueueManager {
+	return &QueueManager{
 		Scheduled_Q:    [] *EvacContainer{},
 		Accepted_Q:	   [] *EvacContainer{},
 	}
@@ -32,12 +32,10 @@ type Healer struct {
 	eventCh      <- chan interface{}
 	resultCh     chan *EvacContainer
 	cluster      Cluster
-	dispatcher   *Dispatcher
 	// mapping between hypervisor hostname {key} and claims to this hypervisor
 	Claims_M     map[string]*ResourcesClaimManager
 	Evac_Q       [] *EvacContainer
 	FailedEvac_Q [] EvacContainer
-	queryManager *EvacQueryManager
 }
 
 func NewHealer(event <- chan interface{}) *Healer {
@@ -50,23 +48,23 @@ func NewHealer(event <- chan interface{}) *Healer {
 		Claims_M: 		map[string] *ResourcesClaimManager{},
 		Evac_Q: 		[] *EvacContainer{},
 		FailedEvac_Q:   [] EvacContainer{},
-		queryManager: NewEvacQueryManager(),
 	}
 }
 
-func (h *Healer) Shutdown() {
-	h.dispatcher.shutdown()
+func (h *Healer) Shutdown(dispatcher *Dispatcher) {
+	dispatcher.shutdown()
 }
 
 func (h *Healer) Heal(client *gophercloud.ServiceClient) {
-	h.dispatcher = NewDispatcher(client, h.resultCh)
+	dispatcher := NewDispatcher(client, h.resultCh)
+	queueManager := NewQueueManager()
 
 	for {
 		select {
 		// http://stackoverflow.com/questions/13666253/breaking-out-of-a-select-statement-when-all-channels-are-closed
 			case event, ok := <-h.eventCh:
 				if !ok {
-					h.Shutdown()
+					h.Shutdown(dispatcher)
 					// TODO: wait for subprocesses to stop
 					return
 				}
@@ -76,8 +74,8 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 				}
 				switch {
 					case evt == "fail":
-						h.prepareVMsEvacuation(client)
-						h.dispatcher.activate(h.queryManager.Scheduled_Q, h.queryManager.Accepted_Q)
+						h.prepareVMsEvacuation(client, queueManager)
+						dispatcher.activate(queueManager)
 
 					case evt == "join":
 						// TODO:
@@ -90,17 +88,17 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 			case container := <-h.resultCh:
 				switch {
 					case container.State == "accepted":
-						h.processAccepedContainer(container)
+						h.processAccepedContainer(container, queueManager)
 					case container.State == "finised":
-						h.processFinishedContainer(*container)
+						h.processFinishedContainer(*container, queueManager)
 					case container.State == "failed":
-						h.processFailedContainer(*container)
+						h.processFailedContainer(*container, queueManager)
 				}
 		}
 	}
 }
 
-func (h *Healer) prepareVMsEvacuation(client *gophercloud.ServiceClient) {
+func (h *Healer) prepareVMsEvacuation(client *gophercloud.ServiceClient, qm *QueueManager) {
 	hostname := h.getFailedHostname()
 	err := h.forceDownServiceWithRetry(client, hostname)
 	// We append new VMs only if compute service was successfully
@@ -133,9 +131,9 @@ func (h *Healer) prepareVMsEvacuation(client *gophercloud.ServiceClient) {
 			continue
 		}
 
-		h.queryManager.lock.RLock()
-		h.queryManager.Scheduled_Q = append(h.queryManager.Scheduled_Q, server)
-		h.queryManager.lock.RUnlock()
+		qm.lock.RLock()
+		qm.Scheduled_Q = append(qm.Scheduled_Q, server)
+		qm.lock.RUnlock()
 	}
 }
 
@@ -229,38 +227,38 @@ func (h *Healer) claimResourcesWithRetry(client *gophercloud.ServiceClient, serv
 	return nil
 }
 
-func (h *Healer) processAccepedContainer(container *EvacContainer) {
-	for idx, _container := range h.queryManager.Scheduled_Q {
+func (h *Healer) processAccepedContainer(container *EvacContainer, qm *QueueManager) {
+	for idx, _container := range qm.Scheduled_Q {
 		if _container.Id == container.Id {
 			// Remove from scheduled  queue
-			h.queryManager.lock.RLock()
-			h.queryManager.Scheduled_Q = append(h.queryManager.Scheduled_Q[:idx], h.queryManager.Scheduled_Q[idx+1:]...)
-			h.queryManager.Accepted_Q = append(h.queryManager.Accepted_Q, container)
-			h.queryManager.lock.RUnlock()
+			qm.lock.RLock()
+			qm.Scheduled_Q = append(qm.Scheduled_Q[:idx], qm.Scheduled_Q[idx+1:]...)
+			qm.Accepted_Q = append(qm.Accepted_Q, container)
+			qm.lock.RUnlock()
 		}
 	}
 }
 
-func (h *Healer) removeContainerFromAcceptedQueue(container EvacContainer) {
-	for idx, _container := range h.queryManager.Accepted_Q {
+func (h *Healer) removeContainerFromAcceptedQueue(container EvacContainer, qm *QueueManager) {
+	for idx, _container := range qm.Accepted_Q {
 		if _container.Id == container.Id {
 			// Remove from accepted  queue
-			h.queryManager.lock.RLock()
-			h.queryManager.Accepted_Q = append(h.queryManager.Accepted_Q[:idx], h.queryManager.Accepted_Q[idx+1:]...)
-			h.queryManager.lock.RUnlock()
+			qm.lock.RLock()
+			qm.Accepted_Q = append(qm.Accepted_Q[:idx], qm.Accepted_Q[idx+1:]...)
+			qm.lock.RUnlock()
 		}
 	}
 }
 
-func (h *Healer) processFinishedContainer(container EvacContainer) {
-	h.removeContainerFromAcceptedQueue(container)
+func (h *Healer) processFinishedContainer(container EvacContainer, qm *QueueManager) {
+	h.removeContainerFromAcceptedQueue(container, qm)
 	log.Infof("Server %s was evacuated successfully", container.ServerBefore.ID)
 }
 
-func (h *Healer) processFailedContainer(container EvacContainer) {
+func (h *Healer) processFailedContainer(container EvacContainer, qm *QueueManager) {
 	// If server wasn't evacuated successfully we add it to the
 	// failed queue
-	h.removeContainerFromAcceptedQueue(container)
+	h.removeContainerFromAcceptedQueue(container, qm)
 	log.Errorf("Server %s wasn't evacuated successfully", container.ServerBefore.ID)
 	h.FailedEvac_Q = append(h.FailedEvac_Q, container)
 }

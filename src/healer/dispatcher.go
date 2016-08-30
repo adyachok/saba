@@ -18,17 +18,21 @@ func NewDispatcher(client *gophercloud.ServiceClient, resultChannel chan<- *Evac
 	}
 }
 
-func (d *Dispatcher) dispatch (scheduled_Q []*EvacContainer, accepted_Q []*EvacContainer) {
+func (d *Dispatcher) dispatch (qm *QueueManager) {
 	var container *EvacContainer
 	for d.State == "active" {
 		switch {
-		case len(accepted_Q) > 0:
-			container = accepted_Q[len(accepted_Q)-1]
-			accepted_Q = accepted_Q[:len(accepted_Q)-1]
+		case len(qm.Accepted_Q) > 0:
+			qm.lock.RLock()
+			container = qm.Accepted_Q[len(qm.Accepted_Q)-1]
+			qm.Accepted_Q = qm.Accepted_Q[:len(qm.Accepted_Q)-1]
+			qm.lock.RUnlock()
 			d.pool.Run(container)
-		case len(scheduled_Q) > 0:
-			container = scheduled_Q[len(scheduled_Q)-1]
-			scheduled_Q = scheduled_Q[:len(scheduled_Q)-1]
+		case len(qm.Scheduled_Q) > 0:
+			qm.lock.RLock()
+			container = qm.Scheduled_Q[len(qm.Scheduled_Q)-1]
+			qm.Scheduled_Q = qm.Scheduled_Q[:len(qm.Scheduled_Q)-1]
+			qm.lock.RUnlock()
 			d.pool.Run(container)
 		default:
 			d.passivate()
@@ -40,16 +44,17 @@ func (d *Dispatcher) passivate() {
 	d.State = "passive"
 }
 
-func (d *Dispatcher) activate(evac_Q []*EvacContainer, accept_Q []*EvacContainer) {
+func (d *Dispatcher) activate(qm *QueueManager) {
 	if d.State != "active" {
 		d.State = "active"
-		d.dispatch(evac_Q, accept_Q)
+		d.dispatch(qm)
 	}
 }
 
 func (d *Dispatcher) shutdown() {
 	d.State = "shutdown"
 	d.pool.Shutdown()
+	return
 }
 
 

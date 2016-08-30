@@ -9,7 +9,7 @@ import (
 	"github.com/rackspace/gophercloud/testhelper/client"
 )
 
-func TestPool_Run(t *testing.T) {
+func TestPoolEvacuate(t *testing.T) {
 	th.SetupHTTP()
 	defer th.TeardownHTTP()
 
@@ -19,17 +19,18 @@ func TestPool_Run(t *testing.T) {
 
 	evCh := make(chan interface{})
 	healer := NewHealer(evCh)
+	qm := NewQueueManager()
 
 	client := client.ServiceClient()
-	healer.prepareVMsEvacuation(client)
+	healer.prepareVMsEvacuation(client, qm)
 
-	th.AssertEquals(t, 2, len(healer.queryManager.Scheduled_Q))
+	th.AssertEquals(t, 2, len(qm.Scheduled_Q))
 
 
 	resultsCh := make(chan *EvacContainer)
 
 	dispatcher := NewDispatcher(client, resultsCh)
-	dispatcher.activate(healer.queryManager.Scheduled_Q, healer.queryManager.Accepted_Q)
+	dispatcher.activate(qm)
 
 	ecSlice := []*EvacContainer{}
 
@@ -40,5 +41,39 @@ func TestPool_Run(t *testing.T) {
 	}
 
 	th.AssertEquals(t, 2, len(ecSlice))
+	dispatcher.shutdown()
+}
+
+func TestPoolCheckEvacuation(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	services.HandleServiceForceDownSuccessfully(t)
+	hypervisors.HandleHypervisorsDetailsSuccessfully(t)
+	HandleServersSuccessfully(t)
+
+	evCh := make(chan interface{})
+	healer := NewHealer(evCh)
+	qm := NewQueueManager()
+
+	client := client.ServiceClient()
+	healer.prepareVMsEvacuation(client, qm)
+
+	th.AssertEquals(t, 2, len(qm.Scheduled_Q))
+
+
+	resultsCh := make(chan *EvacContainer)
+	t.Log(qm)
+	dispatcher := NewDispatcher(client, resultsCh)
+	go dispatcher.activate(qm)
+
+
+	for i:=1; i < 3; i++ {
+		res := <- resultsCh
+		th.AssertEquals(t, "accepted", res.State)
+		healer.processAccepedContainer(res, qm)
+		t.Log(qm)
+	}
+	//th.AssertEquals(t, 2, l)
 	dispatcher.shutdown()
 }

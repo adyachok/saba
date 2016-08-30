@@ -43,9 +43,10 @@ func TestHeal(t *testing.T) {
 
 	evCh := make(chan interface{})
 	healer := NewHealer(evCh)
+	qm := NewQueueManager()
 
 	client := client.ServiceClient()
-	healer.prepareVMsEvacuation(client)
+	healer.prepareVMsEvacuation(client, qm)
 
-	th.AssertEquals(t, 2, len(healer.queryManager.Scheduled_Q))
+	th.AssertEquals(t, 2, len(qm.Scheduled_Q))
 }
