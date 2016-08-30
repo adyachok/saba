@@ -93,6 +93,7 @@ func (se *EvacContainer) Claim (client *gophercloud.ServiceClient) (ResourcesCla
 func (se *EvacContainer) CheckServerEvacuation(client *gophercloud.ServiceClient) error{
 	serverNewObj, err := servers.Get(client, se.Id).Extract()
 	if err != nil {
+		log.Error(err)
 		return err
 	}
 	if serverNewObj.Status == "ACTIVE" && se.ServerBefore.HostID != serverNewObj.HostID {

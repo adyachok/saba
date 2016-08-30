@@ -58,6 +58,7 @@ func (h *Healer) Shutdown(dispatcher *Dispatcher) {
 func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 	dispatcher := NewDispatcher(client, h.resultCh)
 	queueManager := NewQueueManager()
+	go dispatcher.activate(queueManager)
 
 	for {
 		select {
@@ -75,7 +76,6 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 				switch {
 					case evt == "fail":
 						h.prepareVMsEvacuation(client, queueManager)
-						dispatcher.activate(queueManager)
 
 					case evt == "join":
 						// TODO:
@@ -88,7 +88,7 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 			case container := <-h.resultCh:
 				switch {
 					case container.State == "accepted":
-						h.processAccepedContainer(container, queueManager)
+						h.processAcceptedContainer(container, queueManager)
 					case container.State == "finised":
 						h.processFinishedContainer(*container, queueManager)
 					case container.State == "failed":
@@ -227,38 +227,20 @@ func (h *Healer) claimResourcesWithRetry(client *gophercloud.ServiceClient, serv
 	return nil
 }
 
-func (h *Healer) processAccepedContainer(container *EvacContainer, qm *QueueManager) {
-	for idx, _container := range qm.Scheduled_Q {
-		if _container.Id == container.Id {
-			// Remove from scheduled  queue
-			qm.lock.RLock()
-			qm.Scheduled_Q = append(qm.Scheduled_Q[:idx], qm.Scheduled_Q[idx+1:]...)
-			qm.Accepted_Q = append(qm.Accepted_Q, container)
-			qm.lock.RUnlock()
-		}
-	}
+func (h *Healer) processAcceptedContainer(container *EvacContainer, qm *QueueManager) {
+	qm.lock.RLock()
+	qm.Accepted_Q = append(qm.Accepted_Q, container)
+	qm.lock.RUnlock()
 }
 
-func (h *Healer) removeContainerFromAcceptedQueue(container EvacContainer, qm *QueueManager) {
-	for idx, _container := range qm.Accepted_Q {
-		if _container.Id == container.Id {
-			// Remove from accepted  queue
-			qm.lock.RLock()
-			qm.Accepted_Q = append(qm.Accepted_Q[:idx], qm.Accepted_Q[idx+1:]...)
-			qm.lock.RUnlock()
-		}
-	}
-}
 
 func (h *Healer) processFinishedContainer(container EvacContainer, qm *QueueManager) {
-	h.removeContainerFromAcceptedQueue(container, qm)
 	log.Infof("Server %s was evacuated successfully", container.ServerBefore.ID)
 }
 
 func (h *Healer) processFailedContainer(container EvacContainer, qm *QueueManager) {
 	// If server wasn't evacuated successfully we add it to the
 	// failed queue
-	h.removeContainerFromAcceptedQueue(container, qm)
 	log.Errorf("Server %s wasn't evacuated successfully", container.ServerBefore.ID)
 	h.FailedEvac_Q = append(h.FailedEvac_Q, container)
 }

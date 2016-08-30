@@ -533,6 +533,87 @@ const ServerDerpSuccessfulEvacuationRespBody = `
 	}
 `
 
+func ServerDerpSuccessfulEvacuationHandler(t *testing.T) {
+	th.Mux.HandleFunc("/servers/9e5476bd-a4ec-4653-93d6-72c93aa682ba", func(w http.ResponseWriter, r *http.Request) {
+		th.TestMethod(t, r, "GET")
+		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
+
+		w.Header().Add("Content-Type", "application/json")
+		fmt.Fprintf(w, ServerDerpSuccessfulEvacuationRespBody)
+	})
+}
+
+const ServerHerpSuccessfulEvacuationRespBody = `
+{
+	"server": {
+			"OS-DCF:diskConfig": "MANUAL",
+			"OS-EXT-STS:power_state": 1,
+			"OS-EXT-STS:task_state": null,
+			"OS-EXT-STS:vm_state": "active",
+			"accessIPv4": "",
+			"accessIPv6": "",
+			"addresses": {},
+			"created": "2014-09-25T13:10:02Z",
+			"flavor": {
+				"id": "performance1-2",
+				"links": [
+					{
+						"href": "https://dfw.servers.api.rackspacecloud.com/111111/flavors/performance1-2",
+						"rel": "bookmark"
+					}
+				]
+			},
+			"hostId": "29d3c8c896a45aa4c34e52247875d7fefc3d94bb1111122b5d204362",
+			"id": "ef079b0c-e610-4dfb-b1aa-b49f07ac48e5",
+						"security_groups": [
+				{
+					"name": "default"
+				}
+			],
+			"image": {
+				"id": "bb02b1a3-bc77-4d17-ab5b-421d89850fca",
+				"links": [
+					{
+						"href": "https://dfw.servers.api.rackspacecloud.com/111111/images/bb02b1a3-bc77-4d17-ab5b-421d89850fca",
+						"rel": "bookmark"
+					}
+				]
+			},
+			"key_name": "",
+			"links": [
+				{
+					"href": "https://dfw.servers.api.rackspacecloud.com/v2/111111/servers/25f1c7f5-e00a-4715-b355-16e24b2f4630",
+					"rel": "self"
+				},
+				{
+					"href": "https://dfw.servers.api.rackspacecloud.com/111111/servers/25f1c7f5-e00a-4715-b355-16e24b2f4630",
+					"rel": "bookmark"
+				}
+			],
+			"metadata": {
+				"evacuation_policy": "Evacuation",
+				"evacuation_range": 0
+			},
+			"name": "herp",
+			"progress": 0,
+			"status": "ACTIVE",
+			"tenant_id": "fcad67a6189847c4aecfa3c81a05783b",
+			"updated": "2014-09-25T13:10:10Z",
+			"user_id": "9349aff8be7545ac9d2f1d00999a23cd"
+		}
+	}
+`
+
+func ServerHerpSuccessfulEvacuationHandler(t *testing.T) {
+	th.Mux.HandleFunc("/servers/ef079b0c-e610-4dfb-b1aa-b49f07ac48e5", func(w http.ResponseWriter, r *http.Request) {
+		th.TestMethod(t, r, "GET")
+		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
+
+		w.Header().Add("Content-Type", "application/json")
+		fmt.Fprintf(w, ServerHerpSuccessfulEvacuationRespBody)
+	})
+}
+
 const ServerDerpFailedEvacuationRespBody = `
 {
 	"server": {
@@ -593,6 +674,87 @@ const ServerDerpFailedEvacuationRespBody = `
 		}
 	}
 `
+
+func ServerDerpFailedEvacuationHandler(t *testing.T) {
+	th.Mux.HandleFunc("/servers/9e5476bd-a4ec-4653-93d6-72c93aa682ba", func(w http.ResponseWriter, r *http.Request) {
+		th.TestMethod(t, r, "GET")
+		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
+
+		w.Header().Add("Content-Type", "application/json")
+		fmt.Fprintf(w, ServerDerpFailedEvacuationRespBody)
+	})
+}
+
+const ServerHerpFailedEvacuationRespBody = `
+{
+	"server": {
+			"OS-DCF:diskConfig": "MANUAL",
+			"OS-EXT-STS:power_state": 1,
+			"OS-EXT-STS:task_state": null,
+			"OS-EXT-STS:vm_state": "active",
+			"accessIPv4": "",
+			"accessIPv6": "",
+			"addresses": {},
+			"created": "2014-09-25T13:10:02Z",
+			"flavor": {
+				"id": "performance1-2",
+				"links": [
+					{
+						"href": "https://dfw.servers.api.rackspacecloud.com/111111/flavors/performance1-2",
+						"rel": "bookmark"
+					}
+				]
+			},
+			"hostId": "29d3c8c896a45aa4c34e52247875d7fefc3d94bbcc9f622b5d204362",
+			"id": "ef079b0c-e610-4dfb-b1aa-b49f07ac48e5",
+						"security_groups": [
+				{
+					"name": "default"
+				}
+			],
+			"image": {
+				"id": "bb02b1a3-bc77-4d17-ab5b-421d89850fca",
+				"links": [
+					{
+						"href": "https://dfw.servers.api.rackspacecloud.com/111111/images/bb02b1a3-bc77-4d17-ab5b-421d89850fca",
+						"rel": "bookmark"
+					}
+				]
+			},
+			"key_name": "",
+			"links": [
+				{
+					"href": "https://dfw.servers.api.rackspacecloud.com/v2/111111/servers/25f1c7f5-e00a-4715-b355-16e24b2f4630",
+					"rel": "self"
+				},
+				{
+					"href": "https://dfw.servers.api.rackspacecloud.com/111111/servers/25f1c7f5-e00a-4715-b355-16e24b2f4630",
+					"rel": "bookmark"
+				}
+			],
+			"metadata": {
+				"evacuation_policy": "Evacuation",
+				"evacuation_range": 0
+			},
+			"name": "herp",
+			"progress": 0,
+			"status": "ERROR",
+			"tenant_id": "fcad67a6189847c4aecfa3c81a05783b",
+			"updated": "2014-09-25T13:10:10Z",
+			"user_id": "9349aff8be7545ac9d2f1d00999a23cd"
+		}
+}
+`
+
+func ServerHerpFailedEvacuationHandler(t *testing.T) {
+	th.Mux.HandleFunc("/servers/ef079b0c-e610-4dfb-b1aa-b49f07ac48e5", func(w http.ResponseWriter, r *http.Request) {
+		th.TestMethod(t, r, "GET")
+		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
+
+		w.Header().Add("Content-Type", "application/json")
+		fmt.Fprintf(w, ServerHerpFailedEvacuationRespBody)
+	})
+}
 
 var ResourceClaimExpected = &ResourcesClaim{
 	ServerUUID:     "9e5476bd-a4ec-4653-93d6-72c93aa682ba",

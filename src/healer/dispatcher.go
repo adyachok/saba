@@ -3,7 +3,10 @@ package healer
 import (
 	"sync"
 	"github.com/rackspace/gophercloud"
+	"time"
 )
+
+const DispatcherTimeout = 500
 
 type Dispatcher struct {
 	// State: active or passive
@@ -14,7 +17,7 @@ type Dispatcher struct {
 func NewDispatcher(client *gophercloud.ServiceClient, resultChannel chan<- *EvacContainer) *Dispatcher {
 	return &Dispatcher{
 		State:    "passive",
-		pool:	  NewPool(client, 4, resultChannel),
+		pool:	  NewPool(client, 1, resultChannel),
 	}
 }
 
@@ -35,7 +38,7 @@ func (d *Dispatcher) dispatch (qm *QueueManager) {
 			qm.lock.RUnlock()
 			d.pool.Run(container)
 		default:
-			d.passivate()
+			time.Sleep(DispatcherTimeout * time.Millisecond)
 		}
 	}
 }

@@ -1,8 +1,6 @@
 package healer
 
 import (
-	"fmt"
-	"net/http"
 	"testing"
 
 	"github.com/adyachok/bacsi/openstack/v2/hypervisors"
@@ -78,14 +76,8 @@ func TestGetVMsToEvacuate(t *testing.T) {
 func TestCheckServerEvacuationSuccess(t *testing.T) {
 	th.SetupHTTP()
 	defer th.TeardownHTTP()
+	ServerDerpSuccessfulEvacuationHandler(t)
 
-	th.Mux.HandleFunc("/servers/9e5476bd-a4ec-4653-93d6-72c93aa682ba", func(w http.ResponseWriter, r *http.Request) {
-		th.TestMethod(t, r, "GET")
-		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
-
-		w.Header().Add("Content-Type", "application/json")
-		fmt.Fprintf(w, ServerDerpSuccessfulEvacuationRespBody)
-	})
 	se := NewEvacContainer(ServerDerp)
 	err := se.CheckServerEvacuation(client.ServiceClient())
 
@@ -99,14 +91,8 @@ func TestCheckServerEvacuationSuccess(t *testing.T) {
 func TestCheckServerEvacuationFail(t *testing.T) {
 	th.SetupHTTP()
 	defer th.TeardownHTTP()
+	ServerDerpFailedEvacuationHandler(t)
 
-	th.Mux.HandleFunc("/servers/9e5476bd-a4ec-4653-93d6-72c93aa682ba", func(w http.ResponseWriter, r *http.Request) {
-		th.TestMethod(t, r, "GET")
-		th.TestHeader(t, r, "X-Auth-Token", client.TokenID)
-
-		w.Header().Add("Content-Type", "application/json")
-		fmt.Fprintf(w, ServerDerpFailedEvacuationRespBody)
-	})
 	se := NewEvacContainer(ServerDerp)
 
 	err := se.CheckServerEvacuation(client.ServiceClient())
