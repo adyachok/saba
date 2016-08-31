@@ -51,8 +51,8 @@ Field **ServerCurrent** contains Server object with information after
 server evacuation.
 Fiels **State** contains information about EvacContainer state accordingly
 to evacuation process. There are next states: 
-1. "scheduled", 
-2. "accepted", 
-3. "finished", 
-4. "failed"*
+    1. "scheduled" 
+    2. "accepted" 
+    3. "finished" 
+    4. "failed"
 
