@@ -23,7 +23,7 @@ are stored in **Evac_Q** of the Healer object.
 When filtering and sorting finished, process executes scheduling logic
 on every VM. Scheduling applies simple filters on available CPU, RAM and
 Hard Drive memory. If VM fits - it is routed to **Scheduled_Q**, if not 
-- to the **Failed_Q**.
+to the **Failed_Q**.
  
 Scheduled_Q belongs to QueueManager object which is shared between Healer
 and Dispatcher. Dispatcher, in active state, periodically checks for
@@ -51,8 +51,7 @@ Field **ServerCurrent** contains Server object with information after
 server evacuation.
 Fiels **State** contains information about EvacContainer state accordingly
 to evacuation process. There are next states: 
-    1. "scheduled" 
-    2. "accepted" 
-    3. "finished" 
-    4. "failed"
-
+- "scheduled" 
+- "accepted" 
+- "finished" 
+- "failed"
