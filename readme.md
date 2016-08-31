@@ -18,12 +18,12 @@ On compute failed event process tries to get all VMs hosted on failed
 compute. After getting VMs - they are filtered accordingly to evacuation
 policy (specified in VM metadata), as well as, sorted accordingly to
 evacuation priority (specified in VM metadata). Filtered and sorted VMs
-are stored in Evac_Q of the Healer object.
+are stored in **Evac_Q** of the Healer object.
  
 When filtering and sorting finished, process executes scheduling logic
 on every VM. Scheduling applies simple filters on available CPU, RAM and
-Hard Drive memory. If VM fits - it is routed to Scheduled_Q, if not - to
-the Failed_Q.
+Hard Drive memory. If VM fits - it is routed to **Scheduled_Q**, if not 
+- to the **Failed_Q**.
  
 Scheduled_Q belongs to QueueManager object which is shared between Healer
 and Dispatcher. Dispatcher, in active state, periodically checks for
@@ -36,3 +36,23 @@ object to the Healed object.
 
 Healer object accordingly to inner logic checks state of an object and
 process it.
+
+On last EvacContainer comes evacuation queue can be updated accordingly
+to resources available.
+
+
+EvacContainer
+-------------
+
+EvacContainer contains information about specified VM. 
+Field **ServerBefore** contains Server object with information before
+evacuation.
+Field **ServerCurrent** contains Server object with information after
+server evacuation.
+Fiels **State** contains information about EvacContainer state accordingly
+to evacuation process. There are next states: 
+1. "scheduled", 
+2. "accepted", 
+3. "finished", 
+4. "failed"*
+
