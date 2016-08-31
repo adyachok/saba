@@ -27,7 +27,7 @@ func TestHealerSchedule(t *testing.T) {
 	healer.cluster.Resources["compute-0-1"] = HypervisorFreeResources_1
 
 	instance := NewEvacContainer(ServerDerp)
-	healer.schedule(instance, *ResourceClaimExpected)
+	healer.ScheduleVM(instance, *ResourceClaimExpected)
 
 	th.AssertEquals(t, 1, len(healer.Claims_M))
 	th.AssertEquals(t, "compute-0-1", instance.ScheduledTo)

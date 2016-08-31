@@ -91,8 +91,10 @@ func (h *Healer) Heal(client *gophercloud.ServiceClient) {
 						h.processAcceptedContainer(container, queueManager)
 					case container.State == "finised":
 						h.processFinishedContainer(*container, queueManager)
+						h.Reschedule(client, queueManager)
 					case container.State == "failed":
 						h.processFailedContainer(*container, queueManager)
+						h.Reschedule(client, queueManager)
 				}
 		}
 	}
@@ -110,31 +112,7 @@ func (h *Healer) prepareVMsEvacuation(client *gophercloud.ServiceClient, qm *Que
 		SortVMsOnEvacuationRange(h.Evac_Q)
 	}
 
-	err = h.cluster.UpdateAvailableClusterResources(client)
-	if err != nil {
-		log.Errorf("Error updating cluster available resources: %s", err)
-	}
-
-	for i := len(h.Evac_Q)-1; i >= 0; i-- {
-		server :=  h.Evac_Q[i]
-		h.Evac_Q = append(h.Evac_Q[:i], h.Evac_Q[i+1:]...)
-
-
-		claim := h.claimResourcesWithRetry(client, server)
-		if claim == nil {
-			h.FailedEvac_Q = append(h.FailedEvac_Q, *server)
-			continue
-		}
-		err = h.schedule(server, *claim)
-		if err != nil {
-			// No available resources found for VM... skipping
-			continue
-		}
-
-		qm.lock.RLock()
-		qm.Scheduled_Q = append(qm.Scheduled_Q, server)
-		qm.lock.RUnlock()
-	}
+	h.Schedule(client, qm)
 }
 
 
@@ -160,9 +138,43 @@ func (h *Healer) updateEvacuationQueueWithRetry(client *gophercloud.ServiceClien
 	return nil
 }
 
+func (h *Healer) Schedule(client *gophercloud.ServiceClient, qm *QueueManager) {
+	err := h.cluster.UpdateAvailableClusterResources(client)
+	if err != nil {
+		log.Errorf("Error updating cluster available resources: %s", err)
+	}
+
+	for i := len(h.Evac_Q)-1; i >= 0; i-- {
+		server :=  h.Evac_Q[i]
+		h.Evac_Q = append(h.Evac_Q[:i], h.Evac_Q[i+1:]...)
+
+
+		claim := h.claimResourcesWithRetry(client, server)
+		if claim == nil {
+			h.FailedEvac_Q = append(h.FailedEvac_Q, *server)
+			continue
+		}
+		err = h.ScheduleVM(server, *claim)
+		if err != nil {
+			// No available resources found for VM... skipping
+			continue
+		}
+
+		qm.lock.RLock()
+		qm.Scheduled_Q = append(qm.Scheduled_Q, server)
+		qm.lock.RUnlock()
+	}
+}
+
+func (h *Healer) Reschedule(client *gophercloud.ServiceClient, qm *QueueManager) {
+	if len(qm.Scheduled_Q) == 0 {
+		h.Schedule(client, qm)
+	}
+}
+
 // Find out appropriate host to evacuate an instance or add instance to the
 // failing evacuation list
-func (h *Healer) schedule(container *EvacContainer, claim ResourcesClaim) error {
+func (h *Healer) ScheduleVM(container *EvacContainer, claim ResourcesClaim) error {
 	for hostname, resources := range h.cluster.Resources {
 		if h.filterResources(claim, hostname, resources) {
 			h.Claims_M[hostname].AppendClaim(claim)
