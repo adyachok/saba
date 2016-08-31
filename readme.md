@@ -23,4 +23,16 @@ are stored in Evac_Q of the Healer object.
 When filtering and sorting finished, process executes scheduling logic
 on every VM. Scheduling applies simple filters on available CPU, RAM and
 Hard Drive memory. If VM fits - it is routed to Scheduled_Q, if not - to
-the Failed_Q. 
+the Failed_Q.
+ 
+Scheduled_Q belongs to QueueManager object which is shared between Healer
+and Dispatcher. Dispatcher, in active state, periodically checks for
+objects in Scheduled_Q and Accepted_Q, and if one of the queues is not
+empty, it pops and sends an object to task execution pool.
+
+During task execution accordingly to the inner logic of EvacContainer, it
+receives predifined state.Task execution pool executes a task and sends
+object to the Healed object.
+
+Healer object accordingly to inner logic checks state of an object and
+process it.
